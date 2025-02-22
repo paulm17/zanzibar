@@ -113,15 +113,11 @@ Will give additional debug information
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## Disclaimer
 
 This is an independent implementation inspired by the Google Zanzibar paper. No code has been used from other implementations like Permify - only the structure of the shapes has been used as reference.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
