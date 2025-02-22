@@ -1,0 +1,74 @@
+schema: |
+  entity content {
+    relation owner @user
+    relation parent @category
+    
+    permission view = owner or tuple_to_userset(parent, moderate)
+  }
+
+  entity category {
+    relation moderator @user
+    
+    permission moderate = moderator and check_age_rating(age_rating)
+    
+    rule check_age_rating(rating) {
+      let user_age = context.user_age;
+      user_age >= rating
+    }
+  }
+
+relationships:
+  # Categories with age ratings
+  - "category:kids$age_rating|integer:0"
+  - "category:teens$age_rating|integer:13"
+  - "category:adults$age_rating|integer:18"
+  
+  # Moderators
+  - "category:kids#moderator@user:alice"
+  - "category:teens#moderator@user:bob"
+  - "category:adults#moderator@user:charlie"
+  
+  # Content items
+  - "content:video1#parent@category:kids"
+  - "content:video1#owner@user:dave"
+  - "content:video2#parent@category:teens"
+  - "content:video2#owner@user:eve"
+  - "content:video3#parent@category:adults"
+  - "content:video3#owner@user:frank"
+
+attributes: []  # Add empty attributes array
+
+scenarios:
+  - name: "Age-based Content Moderation"
+    checks:
+      # Kid content moderation
+      - entity: "content:video1"
+        subject: "user:alice"
+        context:
+          user_age: 25
+        assertions:
+          view: true
+      
+      # Teen content moderation (age check passes)
+      - entity: "content:video2"
+        subject: "user:bob"
+        context:
+          user_age: 15
+        assertions:
+          view: true
+      
+      # Teen content moderation (age check fails)
+      - entity: "content:video2"
+        subject: "user:bob"
+        context:
+          user_age: 12
+        assertions:
+          view: false
+      
+      # Adult content moderation
+      - entity: "content:video3"
+        subject: "user:charlie"
+        context:
+          user_age: 21
+        assertions:
+          view: true

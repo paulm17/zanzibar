@@ -1,0 +1,169 @@
+schema: >-
+  entity user {}
+
+  entity doctor {
+    relation patient @patient
+    relation group @group
+  }
+
+  entity partner {
+    relation admin @user
+    relation member @user
+
+    permission edit = admin
+    permission view = edit or member
+  }
+
+  entity group {
+    relation partner @partner
+    relation doctor @doctor
+
+    permission edit = partner.edit or doctor
+    permission view = edit or partner.view
+  }
+
+  entity state {
+    attribute age_limit integer
+
+    rule check_age(age integer) {
+        this.age_limit > age
+    }
+  }
+
+  entity patient {
+    relation primary_doctor @doctor
+    relation consultant @doctor
+    relation group @group
+    relation state @state
+    relation owner @user
+    relation guardian @user
+
+    attribute age integer
+
+    permission parent_access = state.check_age(age)
+    permission edit = owner or group.edit or primary_doctor or consultant
+    permission view = edit or group.view or guardian
+  }
+
+  entity medical_record {
+    relation patient @patient
+    relation doctor @doctor
+
+    action view = patient.primary_doctor or patient or patient.guardian
+    action create = patient.primary_doctor
+    action update = patient.primary_doctor
+    action delete = patient.primary_doctor
+  }
+
+  entity hospital {
+    relation doctor @doctor
+    relation patient @patient
+    relation group @group
+
+    action admit_patient = doctor
+    action discharge_patient = doctor
+    action view_patient_records = doctor or patient.guardian or group.view
+  }
+
+  entity appointment {
+    relation doctor @doctor
+    relation patient @patient
+
+    action create = patient or doctor
+    action update = patient or doctor.patient
+    action delete = doctor.patient
+  }
+
+  entity claims {
+    relation group @group
+    relation patient @patient
+
+    action edit = patient.edit or group.edit
+    action view = edit or patient.view or group.view
+    action parent_access = patient.parent_access
+  }
+
+relationships:
+  # Basic user assignments
+  - doctor:1#patient@patient:1  # Doctor 1 has Patient 1 as their patient
+  - medical_record:1#patient@patient:1  # Medical record 1 belongs to Patient 1
+  - medical_record:1#doctor@doctor:1    # Medical record 1 is created by Doctor 1
+
+  # Partner Relationships
+  - partner:1#admin@user:10
+  - partner:1#member@user:11
+
+  # Group Relationships
+  - group:1#partner@partner:1
+  - group:1#doctor@doctor:1
+
+  # Patient Relationships
+  - patient:1#primary_doctor@doctor:1
+  - patient:1#consultant@doctor:2
+  - patient:1#group@group:1
+  - patient:1#state@state:1
+  - patient:1#owner@user:12
+  - patient:1#guardian@user:13
+
+attributes: []
+
+scenarios:
+  - name: Patient Owner Edit Permission Test
+    description: >-
+      Tests if the owner (user:12) can edit patient 1's information
+    checks:
+      - entity: patient:1
+        subject: user:12
+        context:
+          tuples: []
+          attributes: []
+        assertions:
+          edit: true
+
+  - name: Patient Guardian View Permission Test
+    description: >-
+      Tests if the guardian (user:13) can view patient 1's information
+    checks:
+      - entity: patient:1
+        subject: user:13
+        context:
+          tuples: []
+          attributes: []
+        assertions:
+          view: true
+
+  - name: Unauthorized User Edit Permission Test
+    description: >-
+      Tests if an unrelated user (user:99) cannot edit patient 1's information
+    checks:
+      - entity: patient:1
+        subject: user:99
+        context:
+          tuples: []
+          attributes: []
+        assertions:
+          edit: false
+
+  - name: Primary Doctor Edit Permission Test
+    description: >-
+      Tests if the primary doctor (doctor:1) can edit patient 1's information
+    checks:
+      - entity: patient:1
+        subject: doctor:1
+        context:
+          tuples: []
+          attributes: []
+        assertions:
+          edit: true
+
+  - name: Medical Record View Permission Test
+    description: >-
+      Tests if a patient's doctor can view their medical records
+    checks:
+      - entity: medical_record:1
+        subject: doctor:1
+        context:
+          tuples: []
+          attributes: []
+        assertions:
+          view: true

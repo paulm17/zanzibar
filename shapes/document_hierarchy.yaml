@@ -1,0 +1,85 @@
+schema: |
+  entity folder {
+    relation parent @folder
+    relation owner @user
+    relation viewer @user
+    relation editor @user
+
+    permission view = owner or viewer or editor or tuple_to_userset(parent, view)
+    permission edit = owner or editor or tuple_to_userset(parent, edit)
+  }
+
+  entity document {
+    relation parent @folder
+    relation owner @user
+    relation viewer @user
+    relation editor @user
+
+    permission view = owner or viewer or editor or tuple_to_userset(parent, view)
+    permission edit = owner or editor or tuple_to_userset(parent, edit)
+  }
+
+relationships:
+  # Set up folder hierarchy
+  - "folder:root#owner@user:admin"
+  - "folder:engineering#parent@folder:root"
+  - "folder:engineering#owner@user:alice"
+  - "folder:design#parent@folder:root"
+  - "folder:design#owner@user:bob"
+  
+  # Documents in engineering folder
+  - "document:spec1#parent@folder:engineering"
+  - "document:spec1#owner@user:charlie"
+  - "document:spec2#parent@folder:engineering"
+  - "document:spec2#viewer@user:dave"
+  
+  # Documents in design folder
+  - "document:mockup1#parent@folder:design"
+  - "document:mockup1#editor@user:eve"
+
+attributes: []  # Add empty attributes array
+
+scenarios:
+  - name: "Document Hierarchy Access Control"
+    checks:
+      # Root folder access
+      - entity: "folder:root"
+        subject: "user:admin"
+        assertions:
+          view: true
+          edit: true
+      
+      # Engineering folder inheritance
+      - entity: "folder:engineering"
+        subject: "user:admin"
+        assertions:
+          view: true
+          edit: true
+      
+      # Document inheritance through folders
+      - entity: "document:spec1"
+        subject: "user:admin"
+        assertions:
+          view: true
+          edit: true
+      
+      # Direct document access
+      - entity: "document:spec1"
+        subject: "user:charlie"
+        assertions:
+          view: true
+          edit: true
+      
+      # Viewer permission without edit
+      - entity: "document:spec2"
+        subject: "user:dave"
+        assertions:
+          view: true
+          edit: false
+      
+      # No access case
+      - entity: "document:mockup1"
+        subject: "user:charlie"
+        assertions:
+          view: false
+          edit: false
